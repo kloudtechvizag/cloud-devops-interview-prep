@@ -76,6 +76,33 @@ graph TD
 
 ---
 
+## ⚡ Kubernetes Resource Management (CPU & Memory)
+
+> [!NOTE]
+> **Linux Perspective:** If you're coming from Linux, you already know that processes consume RAM and CPU time is finite. Kubernetes builds on this by explicitly declaring how much resource an application needs.
+
+### The Problem
+On a single Linux machine, the kernel decides resource allocation. In Kubernetes, many applications run across multiple nodes, competing for shared resources. Without rules, one workload can starve others.
+
+### Requests vs. Limits
+Think of it as a **Reservation vs. a Ceiling**.
+
+| Feature | **Requests (Minimum)** | **Limits (Maximum)** |
+| :--- | :--- | :--- |
+| **Analogy** | **Reservation**: "I need at least this." | **Ceiling**: "Don't go above this." |
+| **Scheduling** | K8s uses this to find a node. | Not used for scheduling. |
+| **Enforcement** | Guaranteed available. | Hard cap (can lead to OOMKill). |
+
+> [!IMPORTANT]
+> **Visualizing Resource Allocation**
+> ![K8s CPU and Memory Explained](./images/K8S-CPU-MEMORY.png)
+
+### 🐧 Linux View: Why Requests Matter?
+- **CPU Requests**: Similar to guaranteeing CPU availability but not a hard cap. It's a scheduling promise.
+- **Memory Requests**: Critical because RAM cannot be overcommitted safely. If a node runs out of memory, the Linux **OOM (Out Of Memory) Killer** will start killing processes.
+
+---
+
 ## 💾 Kubernetes Storage (The Full Map)
 
 > [!IMPORTANT]
@@ -202,4 +229,9 @@ spec:
 > [!NOTE]
 > **Q: Deployment vs StatefulSet?**
 > **Ans:** Use **Deployment** for stateless apps (Web servers). Use **StatefulSet** for stateful apps (Databases) requiring stable IDs and storage.
+
+---
+
+## 📚 Resources & Deep Dives
+- [📄 **Kubernetes CPU and Memory Deep Dive (PDF)**](./PN%201.pdf)
 
