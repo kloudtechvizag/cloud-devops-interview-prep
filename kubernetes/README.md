@@ -49,6 +49,10 @@ graph LR
     style P2 fill:#90ee90
 ```
 
+> [!NOTE]
+> **Visualizing Deployment Strategies**
+> ![Deployment Strategies](./images/k8s-deployment-strategy.jpeg)
+
 ### 2. Blue-Green
 Traffic is switched at the Load Balancer level between two identical environments.
 ```mermaid
@@ -86,6 +90,10 @@ graph TD
     style B fill:#f9f,stroke:#333
     style C fill:#ccf,stroke:#333
 ```
+
+> [!TIP]
+> **Storage Flow Map**
+> ![K8s Storage Flow](./images/k8s-storage.jpeg)
 
 ### 🛠 Troubleshooting Storage
 - **Pending PVC?** Check if `storageClassName` matches.
