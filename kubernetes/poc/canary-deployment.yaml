@@ -1,0 +1,64 @@
+# Canary Deployment Example
+# 1. Start with V1 Deployment (Stable)
+# 2. Create V2 Deployment (Canary) with fewer replicas
+# 3. Service selects both versions using a common label
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-v1
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: my-app
+      version: v1
+  template:
+    metadata:
+      labels:
+        app: my-app
+        version: v1
+    spec:
+      containers:
+      - name: my-app
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-v2-canary
+spec:
+  replicas: 1 # Only 1 replica for 10% traffic (1/11)
+  selector:
+    matchLabels:
+      app: my-app
+      version: v2
+  template:
+    metadata:
+      labels:
+        app: my-app
+        version: v2
+    spec:
+      containers:
+      - name: my-app
+        image: nginx:1.16.1
+        ports:
+        - containerPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-canary-service
+spec:
+  selector:
+    app: my-app # Selects both v1 and v2
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: ClusterIP

@@ -1,0 +1,66 @@
+# Blue-Green Deployment Example
+# 1. Maintain two identical deployments: Blue (v1) and Green (v2)
+# 2. Switch the Service selector to point to the desired version
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-blue
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+      color: blue
+  template:
+    metadata:
+      labels:
+        app: my-app
+        color: blue
+        version: v1
+    spec:
+      containers:
+      - name: my-app
+        image: nginx:1.14.2
+        ports:
+        - containerPort: 80
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app-green
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+      color: green
+  template:
+    metadata:
+      labels:
+        app: my-app
+        color: green
+        version: v2
+    spec:
+      containers:
+      - name: my-app
+        image: nginx:1.16.1
+        ports:
+        - containerPort: 80
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-service
+spec:
+  selector:
+    app: my-app
+    color: blue # Switch this to 'green' to route traffic to v2
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
