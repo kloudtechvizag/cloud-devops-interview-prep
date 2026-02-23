@@ -1,128 +1,197 @@
-# Kubernetes (K8s) for Cloud DevOps Engineers
+# ☸️ Kubernetes (K8s) for Cloud DevOps Engineers
 
-Kubernetes is an open-source system for automating deployment, scaling, and management of containerized applications.
+> [!NOTE]
+> Kubernetes is an open-source system for automating deployment, scaling, and management of containerized applications. It is the industry standard for production-grade container orchestration.
 
 ## 🎡 Kubernetes Architecture
 
-Kubernetes follows a Master-Worker (Control Plane-Node) architecture.
-
-- **Control Plane (Master)**: The "brain" of the cluster.
-    - **API Server**: The gateway for all commands.
-    - **etcd**: Key-value store for cluster data.
-    - **Scheduler**: Decides which node a Pod should run on.
-    - **Controller Manager**: Maintains the desired state (e.g., ensuring 3 replicas are running).
-- **Worker Nodes**: Where the applications run.
-    - **Kubelet**: An agent that runs on each node and ensures containers are running in a Pod.
-    - **Kube-proxy**: Handles networking for the Pods.
-    - **Container Runtime**: (Docker, containerd) runs the containers.
-
 ```mermaid
 graph TD
-    subgraph Control_Plane
-        A[API Server] --- B[etcd]
+    subgraph Control_Plane["🧠 Control Plane (Master)"]
+        A[API Server] --- B[(etcd)]
         A --- C[Scheduler]
         A --- D[Controller Manager]
     end
     A --- E[Node 1]
     A --- F[Node 2]
-    subgraph Node_1
+    subgraph Node_1["Worker Node"]
         E --- G[Kubelet]
         E --- H[Kube-proxy]
-        G --- I[Pods]
+        G --- I[[Pods]]
     end
+    style Control_Plane fill:#f9f,stroke:#333,stroke-width:2px
+    style Node_1 fill:#ccf,stroke:#333,stroke-width:2px
 ```
 
-## 📦 Core Objects
+### Core Components
+| Component | Responsibility |
+| :--- | :--- |
+| **API Server** | The gateway for all commands. |
+| **etcd** | The single source of truth; stores cluster state. |
+| **Scheduler** | Assigns Pods to Nodes based on resources. |
+| **Kubelet** | Ensures containers are running in a Pod. |
 
-- **Pod**: The smallest deployable unit (contains one or more containers).
-- **Deployment**: Manages Pods (scaling, rolling updates).
-- **Service**: Provides a stable IP address and DNS name for a set of Pods.
-- **ConfigMap/Secret**: Used for configuration and sensitive data.
-- **Namespace**: A virtual cluster within a cluster (for isolation).
+---
 
-## 🚀 Kubernetes Deployment Strategies
+## 🚀 Deployment Strategies
 
-Deployment strategies determine how your application is updated in a cluster. Choosing the right one balances availability, risk, and complexity.
+Choosing the right strategy balances **availability** and **risk**.
 
-### 1. Recreate
-All existing Pods are killed before new ones are created.
-- **Pros**: Simple, no version mismatch issues.
-- **Cons**: Significant downtime.
+> [!TIP]
+> Use **RollingUpdate** for most scenarios and **Canary** for testing high-risk features.
 
+### 1. Rolling Update (Default)
+Gradually replaces old Pods with new ones.
 ```mermaid
 graph LR
-    subgraph V1
-        P1(Pod V1)
-    end
-    V1 -- Terminate All --> Stop(Downtime)
-    Stop -- Start All --> V2
-    subgraph V2
-        P2(Pod V2)
-    end
+    P1(V1) -- replace --> P2(V2)
+    P1_1(V1) -- replace --> P2_1(V2)
+    style P2 fill:#90ee90
 ```
 
-### 2. Rolling Update (Default)
-Gradually replaces old Pods with new ones, one by one.
-- **Pros**: Zero downtime, high availability.
-- **Cons**: Both versions run concurrently for a short time.
-
-```mermaid
-graph LR
-    P1(Pod V1) -- replace --> P2(Pod V2)
-    P1_1(Pod V1) -- replace --> P2_1(Pod V2)
-```
-
-### 3. Blue-Green
-Two identical environments (Blue for old, Green for new) are maintained. Traffic is switched at the Load Balancer level.
-- **Pros**: Instant switch, easy rollback.
-- **Cons**: Expensive (requires double the resources).
-
+### 2. Blue-Green
+Traffic is switched at the Load Balancer level between two identical environments.
 ```mermaid
 graph TD
     User --> LB[Load Balancer]
-    LB -- Current Traffic --> Blue[Blue Environment V1]
-    LB -. New Traffic .-> Green[Green Environment V2]
-    style Blue fill:#add8e6
-    style Green fill:#90ee90
+    LB -- 100% Blue --> V1[Blue V1]
+    LB -. 100% Green .-> V2[Green V2]
+    style V1 fill:#add8e6
+    style V2 fill:#90ee90
 ```
 
-### 4. Canary
-The new version is released to a small subset of users first.
-- **Pros**: Test in production with minimal risk.
-- **Cons**: Requires advanced traffic management (like Istio or Nginx Ingress).
-
+### 3. Canary
+Releases to a small subset (e.g., 5%) of users first.
 ```mermaid
 graph TD
     User --> LB[Load Balancer]
-    LB -- 95% Traffic --> V1[Stable V1]
-    LB -- 5% Traffic --> V2[Canary V2]
+    LB -- 95% --> V1[Stable V1]
+    LB -- 5% --> V2[Canary V2]
+    style V2 fill:#ffeb3b
 ```
 
-### 5. Shadow
-A copy of live traffic is sent to the new version without the user knowing. Response is ignored.
-- **Pros**: Zero impact on users, validates performance.
-- **Cons**: Complex to set up, requires service mesh.
+---
 
-### 6. A/B Testing
-Similar to Canary but based on specific user features (e.g., location, browser) to test business impact.
+## 💾 Kubernetes Storage (The Full Map)
+
+> [!IMPORTANT]
+> Understand the flow to avoid the "PVC stuck in Pending" nightmare.
+
+```mermaid
+graph TD
+    A[App Pod] -- uses --> B[PVC]
+    B -- requests --> C[StorageClass]
+    C -- handled by --> D[CSI Driver]
+    D -- provisions --> E[(Cloud Volume)]
+    style B fill:#f9f,stroke:#333
+    style C fill:#ccf,stroke:#333
+```
+
+### 🛠 Troubleshooting Storage
+- **Pending PVC?** Check if `storageClassName` matches.
+- **Data lost after delete?** Ensure `reclaimPolicy: Retain`.
+- **Zone mismatch?** Use `volumeBindingMode: WaitForFirstConsumer`.
+
+---
+
+## 🛠 Hands-on Proof of Concepts (POCs)
+
+### 1. Basic Deployment & Service
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: my-app
+        image: nginx:alpine
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-app-service
+spec:
+  selector:
+    app: my-app
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
+  type: LoadBalancer
+```
+
+### 2. Canary Deployment Manifest
+```yaml
+# Deployment V1 (Stable)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-stable
+spec:
+  replicas: 9
+  selector:
+    matchLabels:
+      app: app
+      version: stable
+---
+# Deployment V2 (Canary)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app-canary
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+      version: canary
+```
+
+### 3. Storage Configuration
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: fast-storage
+provisioner: ebs.csi.aws.com
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: my-app-pvc
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: fast-storage
+```
+
+---
 
 ## 💡 Scenario Based Questions
 
+> [!WARNING]
+> **Q: My Pod is in `ImagePullBackOff`. What do I do?**
+> **Ans:** 1. Verify image name/tag. 2. Check if image exists in registry. 3. Ensure `imagePullSecrets` are configured for private repos.
 
-**Q1: What is the difference between a Deployment and a StatefulSet?**
-- **Ans**: **Deployment** is for stateless apps (where any pod is interchangeable). **StatefulSet** is for stateful apps (like databases) where each pod needs a unique, persistent identity and stable storage.
+> [!TIP]
+> **Q: How to handle high traffic spikes automatically?**
+> **Ans:** Use the **Horizontal Pod Autoscaler (HPA)**. It scales Pods based on CPU/RAM usage.
 
-**Q2: A Pod is in `ImagePullBackOff` status. What are the possible causes?**
-- **Ans**:
-    1. Image name or tag is incorrect.
-    2. Image does not exist in the registry.
-    3. Kubernetes does not have permission to pull the image (e.g., missing `imagePullSecrets`).
+> [!NOTE]
+> **Q: Deployment vs StatefulSet?**
+> **Ans:** Use **Deployment** for stateless apps (Web servers). Use **StatefulSet** for stateful apps (Databases) requiring stable IDs and storage.
 
-**Q3: How do you perform a rolling update in K8s?**
-- **Ans**: Simply update the image version in the Deployment manifest and run `kubectl apply -f manifest.yaml`. K8s will gradually replace old pods with new ones.
-
-**Q4: What is a Horizontal Pod Autoscaler (HPA)?**
-- **Ans**: It automatically scales the number of Pods based on CPU or memory usage.
-
-**Q5: What is an Ingress?**
-- **Ans**: An Ingress is an API object that manages external access to the services in a cluster, typically HTTP. It can provide load balancing, SSL termination, and name-based virtual hosting.
